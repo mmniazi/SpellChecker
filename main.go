@@ -10,6 +10,9 @@ import (
 	"google.golang.org/grpc/reflection"
 	"fmt"
 	"strings"
+	"os"
+	"bufio"
+	"regexp"
 )
 
 const port = ":50051"
@@ -40,7 +43,7 @@ func main() {
 
 
 	fmt.Println("Started Training")
-	model.Train(fuzzy.SampleEnglish())
+	model.Train(LoadSampleEnglish())
 	fmt.Println("Finished Training")
 
 	lis, err := net.Listen("tcp", port)
@@ -57,4 +60,32 @@ func main() {
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
+}
+
+func LoadSampleEnglish() []string {
+	var out []string
+	cwd , _ := os.Getwd()
+	file, err := os.Open(cwd + "/data/big.txt")
+	if err != nil {
+		fmt.Println(err)
+		return out
+	}
+	reader := bufio.NewReader(file)
+	scanner := bufio.NewScanner(reader)
+	scanner.Split(bufio.ScanLines)
+
+	for scanner.Scan() {
+		exp, _ := regexp.Compile("[a-zA-Z]+")
+		words := exp.FindAll([]byte(scanner.Text()), -1)
+		for _, word := range words {
+			if len(word) > 1 {
+				out = append(out, strings.ToLower(string(word)))
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "reading input:", err)
+	}
+
+	return out
 }
